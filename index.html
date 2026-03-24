@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard · Inventario</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #12151c;
+    --surface2: #1a1e28;
+    --border: #232838;
+    --accent: #00e5a0;
+    --accent2: #ff6b35;
+    --accent3: #4d9fff;
+    --text: #e8ecf5;
+    --muted: #6b738a;
+    --danger: #ff4444;
+    --warn: #ffb800;
+    --font: 'Syne', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+  /* HEADER */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 64px; position: sticky; top: 0; z-index: 100;
+  }
+  .logo { display: flex; align-items: center; gap: .75rem; }
+  .logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 6px;
+    display: flex; align-items: center; justify-content: center; }
+  .logo-icon svg { width: 18px; height: 18px; }
+  .logo-text { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em; }
+  .logo-sub { font-size: .7rem; font-family: var(--mono); color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+  .header-right { display: flex; align-items: center; gap: 1rem; }
+  .data-badge { font-family: var(--mono); font-size: .7rem; color: var(--accent); background: rgba(0,229,160,.08);
+    border: 1px solid rgba(0,229,160,.2); padding: .25rem .75rem; border-radius: 20px; }
+  .last-update { font-family: var(--mono); font-size: .7rem; color: var(--muted); }
+
+  /* LAYOUT */
+  main { padding: 2rem; max-width: 1600px; margin: 0 auto; }
+
+  /* FILTERS */
+  .filters-bar {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1rem 1.5rem; margin-bottom: 2rem;
+    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  }
+  .filter-label { font-family: var(--mono); font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; white-space: nowrap; }
+  .filter-group { display: flex; align-items: center; gap: .5rem; }
+  select, input[type="text"] {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    font-family: var(--mono); font-size: .8rem; padding: .4rem .8rem; border-radius: 8px;
+    outline: none; cursor: pointer; transition: border-color .2s;
+  }
+  select:focus, input[type="text"]:focus { border-color: var(--accent); }
+  input[type="text"] { width: 260px; }
+  input[type="text"]::placeholder { color: var(--muted); }
+  .filter-sep { width: 1px; height: 28px; background: var(--border); }
+  .toggle-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+    font-family: var(--mono); font-size: .75rem; padding: .4rem .9rem; border-radius: 8px;
+    cursor: pointer; transition: all .2s;
+  }
+  .toggle-btn.active { background: rgba(0,229,160,.1); border-color: var(--accent); color: var(--accent); }
+  .results-count { margin-left: auto; font-family: var(--mono); font-size: .75rem; color: var(--muted); white-space: nowrap; }
+  .results-count span { color: var(--accent); }
+
+  /* KPI CARDS */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .kpi {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.25rem 1.5rem; position: relative; overflow: hidden; transition: border-color .2s;
+  }
+  .kpi:hover { border-color: var(--accent); }
+  .kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 12px 12px 0 0; }
+  .kpi.green::before { background: var(--accent); }
+  .kpi.orange::before { background: var(--accent2); }
+  .kpi.blue::before { background: var(--accent3); }
+  .kpi.red::before { background: var(--danger); }
+  .kpi.warn::before { background: var(--warn); }
+  .kpi-label { font-family: var(--mono); font-size: .65rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: .5rem; }
+  .kpi-value { font-size: 2.2rem; font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+  .kpi.green .kpi-value { color: var(--accent); }
+  .kpi.orange .kpi-value { color: var(--accent2); }
+  .kpi.blue .kpi-value { color: var(--accent3); }
+  .kpi.red .kpi-value { color: var(--danger); }
+  .kpi.warn .kpi-value { color: var(--warn); }
+  .kpi-sub { font-family: var(--mono); font-size: .7rem; color: var(--muted); margin-top: .4rem; }
+
+  /* CHARTS GRID */
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 1rem; margin-bottom: 2rem; }
+  @media (max-width: 1100px) { .charts-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 700px) { .charts-grid { grid-template-columns: 1fr; } }
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem;
+  }
+  .chart-card.wide { grid-column: span 1; }
+  .chart-title { font-size: .85rem; font-weight: 700; letter-spacing: .02em; margin-bottom: 1.25rem;
+    display: flex; align-items: center; gap: .5rem; }
+  .chart-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .chart-title .dot.green { background: var(--accent); }
+  .chart-title .dot.orange { background: var(--accent2); }
+  .chart-title .dot.blue { background: var(--accent3); }
+  .chart-wrap { position: relative; height: 220px; }
+
+  /* TOP MATERIALS BAR */
+  .top-list { display: flex; flex-direction: column; gap: .6rem; margin-top: .5rem; }
+  .top-item { display: grid; grid-template-columns: 1fr auto; gap: .5rem; align-items: center; }
+  .top-name { font-size: .78rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .top-bar-wrap { grid-column: 1; }
+  .top-bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 3px; }
+  .top-bar-fill { height: 4px; background: linear-gradient(90deg, var(--accent), var(--accent3)); border-radius: 2px; transition: width .8s ease; }
+  .top-val { font-family: var(--mono); font-size: .75rem; color: var(--accent); white-space: nowrap; text-align: right; }
+
+  /* TABLE */
+  .table-section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .table-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; }
+  .table-title { font-size: .9rem; font-weight: 700; letter-spacing: .02em; }
+  .table-actions { display: flex; gap: .5rem; }
+  .btn-small {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+    font-family: var(--mono); font-size: .7rem; padding: .35rem .75rem; border-radius: 6px;
+    cursor: pointer; transition: all .2s;
+  }
+  .btn-small:hover { border-color: var(--accent); color: var(--accent); }
+  .table-wrap { overflow-x: auto; max-height: 480px; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  thead { position: sticky; top: 0; background: var(--surface2); z-index: 1; }
+  th { padding: .75rem 1rem; text-align: left; font-family: var(--mono); font-size: .7rem;
+    color: var(--muted); text-transform: uppercase; letter-spacing: .08em; border-bottom: 1px solid var(--border);
+    cursor: pointer; user-select: none; white-space: nowrap; }
+  th:hover { color: var(--accent); }
+  th .sort-icon { margin-left: .3rem; opacity: .4; }
+  th.sorted .sort-icon { opacity: 1; color: var(--accent); }
+  td { padding: .65rem 1rem; border-bottom: 1px solid rgba(35,40,56,.5); font-size: .82rem; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,.02); }
+  .td-material { font-family: var(--mono); font-size: .75rem; color: var(--muted); }
+  .td-nombre { font-weight: 600; }
+  .badge {
+    display: inline-block; font-family: var(--mono); font-size: .65rem; padding: .2rem .55rem;
+    border-radius: 4px; font-weight: 500; letter-spacing: .04em;
+  }
+  .badge-centro { background: rgba(77,159,255,.12); color: var(--accent3); border: 1px solid rgba(77,159,255,.2); }
+  .badge-alm { background: rgba(0,229,160,.08); color: var(--accent); border: 1px solid rgba(0,229,160,.15); }
+  .stock-cell { font-family: var(--mono); font-weight: 600; }
+  .stock-cell.zero { color: var(--muted); }
+  .stock-cell.low { color: var(--warn); }
+  .stock-cell.high { color: var(--accent); }
+  .stock-bar { width: 60px; height: 4px; background: var(--border); border-radius: 2px; margin-top: 3px; }
+  .stock-bar-fill { height: 4px; background: var(--accent); border-radius: 2px; }
+
+  /* PAGINATION */
+  .pagination { padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between;
+    border-top: 1px solid var(--border); }
+  .page-info { font-family: var(--mono); font-size: .75rem; color: var(--muted); }
+  .page-info span { color: var(--text); }
+  .page-btns { display: flex; gap: .35rem; }
+  .page-btn {
+    width: 32px; height: 32px; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--muted); border-radius: 6px; cursor: pointer; font-family: var(--mono); font-size: .8rem;
+    display: flex; align-items: center; justify-content: center; transition: all .2s;
+  }
+  .page-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .page-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 700; }
+  .page-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+  /* LOADING */
+  #loading { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; z-index: 999; gap: 1.5rem; }
+  .loader { width: 48px; height: 48px; border: 3px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-family: var(--mono); font-size: .8rem; color: var(--muted); letter-spacing: .1em; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* RESPONSIVE */
+  @media (max-width: 600px) {
+    main { padding: 1rem; }
+    header { padding: 0 1rem; }
+    .header-right { gap: .5rem; }
+    .last-update { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="loader"></div>
+  <div class="loading-text">CARGANDO INVENTARIO...</div>
+</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#0a0c10" stroke-width="2.5">
+        <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+        <path d="M7 8h10M7 12h6"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-text">Inventario Dashboard</div>
+      <div class="logo-sub">Control de Stock · EPP</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="data-badge" id="dataBadge">● LIVE DATA</div>
+    <div class="last-update" id="lastUpdate"></div>
+  </div>
+</header>
+
+<main>
+  <!-- KPIs -->
+  <div class="kpis">
+    <div class="kpi green">
+      <div class="kpi-label">Stock Total</div>
+      <div class="kpi-value" id="kpiTotal">–</div>
+      <div class="kpi-sub">unidades disponibles</div>
+    </div>
+    <div class="kpi blue">
+      <div class="kpi-label">Materiales</div>
+      <div class="kpi-value" id="kpiMateriales">–</div>
+      <div class="kpi-sub">referencias únicas</div>
+    </div>
+    <div class="kpi orange">
+      <div class="kpi-label">Con Stock</div>
+      <div class="kpi-value" id="kpiConStock">–</div>
+      <div class="kpi-sub">registros activos</div>
+    </div>
+    <div class="kpi red">
+      <div class="kpi-label">Sin Stock</div>
+      <div class="kpi-value" id="kpiSinStock">–</div>
+      <div class="kpi-sub">registros en cero</div>
+    </div>
+    <div class="kpi warn">
+      <div class="kpi-label">Registros</div>
+      <div class="kpi-value" id="kpiRegistros">–</div>
+      <div class="kpi-sub">líneas en inventario</div>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title"><span class="dot blue"></span>Stock por Centro</div>
+      <div class="chart-wrap"><canvas id="chartCentro"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span class="dot orange"></span>Stock por Almacén</div>
+      <div class="chart-wrap"><canvas id="chartAlmacen"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span class="dot green"></span>Top 10 Materiales</div>
+      <div id="topList" class="top-list"></div>
+    </div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters-bar">
+    <div class="filter-group">
+      <span class="filter-label">Centro</span>
+      <select id="filterCentro"><option value="">Todos</option></select>
+    </div>
+    <div class="filter-sep"></div>
+    <div class="filter-group">
+      <span class="filter-label">Almacén</span>
+      <select id="filterAlmacen"><option value="">Todos</option></select>
+    </div>
+    <div class="filter-sep"></div>
+    <div class="filter-group">
+      <span class="filter-label">Stock</span>
+      <button class="toggle-btn" id="btnConStock" onclick="toggleFilter('conStock')">Solo con stock</button>
+      <button class="toggle-btn" id="btnSinStock" onclick="toggleFilter('sinStock')">Solo sin stock</button>
+    </div>
+    <div class="filter-sep"></div>
+    <input type="text" id="searchInput" placeholder="Buscar material o código..." oninput="applyFilters()">
+    <div class="results-count">Mostrando <span id="countShowing">–</span> de <span id="countTotal">–</span></div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-section">
+    <div class="table-header">
+      <div class="table-title">Inventario Detallado</div>
+      <div class="table-actions">
+        <button class="btn-small" onclick="exportCSV()">↓ CSV</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortTable('Material')">Código <span class="sort-icon" id="sort-Material">↕</span></th>
+            <th onclick="sortTable('Texto breve de material')">Descripción <span class="sort-icon" id="sort-Texto breve de material">↕</span></th>
+            <th onclick="sortTable('Centro')">Centro <span class="sort-icon" id="sort-Centro">↕</span></th>
+            <th onclick="sortTable('Almacén')">Almacén <span class="sort-icon" id="sort-Almacén">↕</span></th>
+            <th onclick="sortTable('Libre utilización')">Stock <span class="sort-icon" id="sort-Libre utilización">↕</span></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <div class="page-info">Página <span id="currentPage">1</span> de <span id="totalPages">–</span></div>
+      <div class="page-btns" id="pageBtns"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let allData = [];
+let filtered = [];
+let sortKey = 'Libre utilización';
+let sortDir = -1;
+let page = 1;
+const PER_PAGE = 50;
+const activeFilters = { conStock: false, sinStock: false };
+let maxStock = 1;
+
+// ─── INIT ──────────────────────────────────────────────────────────────────────
+async function init() {
+  const res = await fetch('data.json');
+  const data = await res.json();
+
+  allData = data.inventario;
+  maxStock = Math.max(...allData.map(r => r['Libre utilización']));
+
+  // KPIs
+  document.getElementById('kpiTotal').textContent = data.stats.total_stock.toLocaleString('es-CO');
+  document.getElementById('kpiMateriales').textContent = data.stats.total_materiales.toLocaleString('es-CO');
+  document.getElementById('kpiConStock').textContent = data.stats.con_stock.toLocaleString('es-CO');
+  document.getElementById('kpiSinStock').textContent = data.stats.sin_stock.toLocaleString('es-CO');
+  document.getElementById('kpiRegistros').textContent = data.stats.total_registros.toLocaleString('es-CO');
+  document.getElementById('lastUpdate').textContent = 'Corte: ' + data.generado;
+
+  // Populate filters
+  data.stats.centros.forEach(c => {
+    const o = document.createElement('option'); o.value = c; o.textContent = c;
+    document.getElementById('filterCentro').appendChild(o);
+  });
+  data.stats.almacenes.filter(a=>a).forEach(a => {
+    const o = document.createElement('option'); o.value = a; o.textContent = 'Almacén ' + a;
+    document.getElementById('filterAlmacen').appendChild(o);
+  });
+
+  // Charts
+  renderCentroChart(data.por_centro);
+  renderAlmacenChart(data.por_almacen);
+  renderTopList(data.top_materiales);
+
+  // Table
+  applyFilters();
+
+  document.getElementById('loading').style.display = 'none';
+}
+
+// ─── CHARTS ────────────────────────────────────────────────────────────────────
+function renderCentroChart(por_centro) {
+  const ctx = document.getElementById('chartCentro').getContext('2d');
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(por_centro),
+      datasets: [{ data: Object.values(por_centro),
+        backgroundColor: ['#4d9fff','#00e5a0','#ff6b35'],
+        borderColor: '#12151c', borderWidth: 3, hoverOffset: 8 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#6b738a', font: { family: 'IBM Plex Mono', size: 11 }, padding: 16, boxWidth: 10 } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw.toLocaleString('es-CO')} uds` } }
+      }
+    }
+  });
+}
+
+function renderAlmacenChart(por_almacen) {
+  const ctx = document.getElementById('chartAlmacen').getContext('2d');
+  const labels = Object.keys(por_almacen).filter(k=>k).map(k => 'Alm. '+k);
+  const vals = Object.entries(por_almacen).filter(([k])=>k).map(([,v])=>v);
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ data: vals, backgroundColor: ['#ff6b35','#ffb800','#4d9fff','#00e5a0'],
+        borderRadius: 6, borderSkipped: false }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.raw.toLocaleString('es-CO')} unidades` } }
+      },
+      scales: {
+        x: { grid: { color: '#232838' }, ticks: { color: '#6b738a', font: { family: 'IBM Plex Mono', size: 11 } } },
+        y: { grid: { color: '#232838' }, ticks: { color: '#6b738a', font: { family: 'IBM Plex Mono', size: 11 } } }
+      }
+    }
+  });
+}
+
+function renderTopList(top) {
+  const maxVal = top[0]?.stock || 1;
+  const container = document.getElementById('topList');
+  container.innerHTML = top.slice(0,10).map(item => `
+    <div class="top-item">
+      <div>
+        <div class="top-name">${item.nombre}</div>
+        <div class="top-bar"><div class="top-bar-fill" style="width:${Math.round(item.stock/maxVal*100)}%"></div></div>
+      </div>
+      <div class="top-val">${item.stock.toLocaleString('es-CO')}</div>
+    </div>
+  `).join('');
+}
+
+// ─── FILTERS ──────────────────────────────────────────────────────────────────
+function applyFilters() {
+  const centro = document.getElementById('filterCentro').value;
+  const almacen = document.getElementById('filterAlmacen').value;
+  const search = document.getElementById('searchInput').value.toLowerCase().trim();
+
+  filtered = allData.filter(r => {
+    if (centro && r.Centro !== centro) return false;
+    if (almacen && r['Almacén'] !== almacen) return false;
+    if (activeFilters.conStock && r['Libre utilización'] === 0) return false;
+    if (activeFilters.sinStock && r['Libre utilización'] > 0) return false;
+    if (search) {
+      const hay = (r.Material + ' ' + r['Texto breve de material']).toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  // Sort
+  filtered.sort((a,b) => {
+    const av = a[sortKey], bv = b[sortKey];
+    return av < bv ? -sortDir : av > bv ? sortDir : 0;
+  });
+
+  page = 1;
+  document.getElementById('countShowing').textContent = filtered.length.toLocaleString('es-CO');
+  document.getElementById('countTotal').textContent = allData.length.toLocaleString('es-CO');
+  renderTable();
+}
+
+function toggleFilter(type) {
+  activeFilters[type] = !activeFilters[type];
+  if (type === 'conStock' && activeFilters.conStock) activeFilters.sinStock = false;
+  if (type === 'sinStock' && activeFilters.sinStock) activeFilters.conStock = false;
+  document.getElementById('btnConStock').classList.toggle('active', activeFilters.conStock);
+  document.getElementById('btnSinStock').classList.toggle('active', activeFilters.sinStock);
+  applyFilters();
+}
+
+// ─── SORT ──────────────────────────────────────────────────────────────────────
+function sortTable(key) {
+  if (sortKey === key) sortDir *= -1;
+  else { sortKey = key; sortDir = key === 'Libre utilización' ? -1 : 1; }
+  document.querySelectorAll('th').forEach(th => th.classList.remove('sorted'));
+  const icons = { 'Material':'Material', 'Texto breve de material':'Texto breve de material', 'Centro':'Centro', 'Almacén':'Almacén', 'Libre utilización':'Libre utilización' };
+  const el = document.getElementById('sort-' + key);
+  if (el) { el.textContent = sortDir === 1 ? '↑' : '↓'; el.parentElement.classList.add('sorted'); }
+  applyFilters();
+}
+
+// ─── TABLE ────────────────────────────────────────────────────────────────────
+function renderTable() {
+  const total = Math.ceil(filtered.length / PER_PAGE);
+  document.getElementById('totalPages').textContent = total || 1;
+  document.getElementById('currentPage').textContent = page;
+
+  const start = (page-1)*PER_PAGE, end = start+PER_PAGE;
+  const rows = filtered.slice(start, end);
+
+  const body = document.getElementById('tableBody');
+  body.innerHTML = rows.map(r => {
+    const s = r['Libre utilización'];
+    const cls = s === 0 ? 'zero' : s < 10 ? 'low' : 'high';
+    const pct = maxStock > 0 ? Math.round(s/maxStock*100) : 0;
+    return `<tr>
+      <td><span class="td-material">${r.Material}</span></td>
+      <td><span class="td-nombre">${r['Texto breve de material']}</span></td>
+      <td><span class="badge badge-centro">${r.Centro}</span></td>
+      <td><span class="badge badge-alm">Alm ${r['Almacén'] || '–'}</span></td>
+      <td>
+        <span class="stock-cell ${cls}">${s.toLocaleString('es-CO')}</span>
+        ${s > 0 ? `<div class="stock-bar"><div class="stock-bar-fill" style="width:${Math.min(pct,100)}%"></div></div>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+
+  renderPagination(total);
+}
+
+function renderPagination(total) {
+  const container = document.getElementById('pageBtns');
+  container.innerHTML = '';
+
+  const btn = (label, target, disabled=false, active=false) => {
+    const b = document.createElement('button');
+    b.className = 'page-btn' + (active?' active':'');
+    b.textContent = label; b.disabled = disabled;
+    b.onclick = () => { page = target; renderTable(); };
+    return b;
+  };
+
+  container.appendChild(btn('‹', page-1, page===1));
+  const range = getPageRange(page, total);
+  range.forEach(p => {
+    if (p === '…') { const s = document.createElement('span'); s.textContent='…'; s.style.cssText='color:var(--muted);padding:0 .25rem;align-self:center'; container.appendChild(s); }
+    else container.appendChild(btn(p, p, false, p===page));
+  });
+  container.appendChild(btn('›', page+1, page===total));
+}
+
+function getPageRange(cur, total) {
+  if (total <= 7) return Array.from({length:total},(_,i)=>i+1);
+  if (cur <= 4) return [1,2,3,4,5,'…',total];
+  if (cur >= total-3) return [1,'…',total-4,total-3,total-2,total-1,total];
+  return [1,'…',cur-1,cur,cur+1,'…',total];
+}
+
+// ─── EXPORT ───────────────────────────────────────────────────────────────────
+function exportCSV() {
+  const headers = ['Material','Texto breve de material','Centro','Almacén','Libre utilización'];
+  const rows = filtered.map(r => headers.map(h => JSON.stringify(r[h] ?? '')).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  a.download = 'inventario_export.csv'; a.click();
+}
+
+// ─── FILTER LISTENERS ────────────────────────────────────────────────────────
+document.getElementById('filterCentro').addEventListener('change', applyFilters);
+document.getElementById('filterAlmacen').addEventListener('change', applyFilters);
+
+init().catch(console.error);
+</script>
+</body>
+</html>
