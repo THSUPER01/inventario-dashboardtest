@@ -1,0 +1,49 @@
+name: Update Dashboard Data
+
+on:
+  push:
+    paths:
+      - 'inventario.xlsx'       # Se activa solo cuando cambia el Excel
+      - '.github/workflows/**'
+  workflow_dispatch:            # Permite correr manualmente desde GitHub
+  schedule:
+    - cron: '0 6 * * 1-5'      # Lunes a viernes a las 6am UTC (8am Colombia)
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install pandas openpyxl
+
+      - name: Build data.json from Excel
+        run: python build_data.py inventario.xlsx
+
+      - name: Commit data.json if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.json
+          git diff --staged --quiet || git commit -m "chore: update dashboard data [$(date +'%Y-%m-%d %H:%M')]"
+          git push
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
+          exclude_assets: '.github,build_data.py,inventario.xlsx,*.md,requirements.txt'
