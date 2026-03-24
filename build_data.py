@@ -40,6 +40,41 @@ top_list = [
     for (m, n), s in top_mat.items()
 ]
 
+# ─── NEW KPI AGGREGATIONS ────────────────────────────────────────────────────
+total_registros = len(df)
+total_stock = int(df["Libre utilización"].sum())
+sin_stock = int((df["Libre utilización"] == 0).sum())
+con_stock = int((df["Libre utilización"] > 0).sum())
+
+# Zero stock rate as percentage
+tasa_sin_stock = round(sin_stock / total_registros * 100, 1) if total_registros > 0 else 0
+
+# Average stock per record (only for records with stock > 0)
+con_stock_df = df[df["Libre utilización"] > 0]
+stock_promedio = round(con_stock_df["Libre utilización"].mean(), 1) if len(con_stock_df) > 0 else 0
+
+# Stock concentration in top 10 materials
+top10_stock = (
+    df.groupby("Material")["Libre utilización"]
+    .sum()
+    .sort_values(ascending=False)
+    .head(10)
+    .sum()
+)
+concentracion_top10 = round(top10_stock / total_stock * 100, 1) if total_stock > 0 else 0
+
+# Materials at risk: materials whose TOTAL stock across all centers is between 1 and 5
+stock_por_material = df.groupby("Material")["Libre utilización"].sum()
+materiales_en_riesgo = int(((stock_por_material > 0) & (stock_por_material <= 5)).sum())
+
+# Coverage by center: count of unique materials with stock > 0 per center
+cobertura_por_centro = (
+    df[df["Libre utilización"] > 0]
+    .groupby("Centro")["Material"]
+    .nunique()
+    .to_dict()
+)
+
 # ─── BUILD JSON ───────────────────────────────────────────────────────────────
 data = {
     "generado": str(date.today()),
@@ -48,13 +83,18 @@ data = {
     "por_almacen": {k: int(v) for k, v in por_almacen.items()},
     "top_materiales": top_list,
     "stats": {
-        "total_registros": len(df),
+        "total_registros": total_registros,
         "total_materiales": int(df["Material"].nunique()),
-        "total_stock": int(df["Libre utilización"].sum()),
-        "sin_stock": int((df["Libre utilización"] == 0).sum()),
-        "con_stock": int((df["Libre utilización"] > 0).sum()),
+        "total_stock": total_stock,
+        "sin_stock": sin_stock,
+        "con_stock": con_stock,
         "centros": sorted(df["Centro"].unique().tolist()),
         "almacenes": sorted([a for a in df["Almacén"].unique().tolist() if a]),
+        "tasa_sin_stock": tasa_sin_stock,
+        "stock_promedio": stock_promedio,
+        "concentracion_top10": concentracion_top10,
+        "materiales_en_riesgo": materiales_en_riesgo,
+        "cobertura_por_centro": {k: int(v) for k, v in cobertura_por_centro.items()},
     },
 }
 
