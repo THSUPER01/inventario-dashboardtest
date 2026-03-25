@@ -1,5 +1,5 @@
 {
-  "generado": "2026-03-24",
+  "generado": "2026-03-25",
   "inventario": [
     {
       "Material": "170000000",
@@ -32524,6 +32524,15 @@
       "20",
       "45",
       "46"
-    ]
+    ],
+    "tasa_sin_stock": 81.1,
+    "stock_promedio": 26.5,
+    "concentracion_top10": 52.5,
+    "materiales_en_riesgo": 76,
+    "cobertura_por_centro": {
+      "CPB2": 265,
+      "CPS1": 323,
+      "CPT2": 260
+    }
   }
 }
