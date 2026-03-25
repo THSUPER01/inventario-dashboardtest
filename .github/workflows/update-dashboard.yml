@@ -1,13 +1,9 @@
 name: Update Dashboard Data
 
 on:
-  push:
-    paths:
-      - 'inventario.xlsx'       # Se activa solo cuando cambia el Excel
-      - '.github/workflows/**'
-  workflow_dispatch:            # Permite correr manualmente desde GitHub
+  workflow_dispatch:            # Disparo manual desde GitHub o desde Power Automate
   schedule:
-    - cron: '0 6 * * 1-5'      # Lunes a viernes a las 6am UTC (8am Colombia)
+    - cron: '0 6 * * 1-5'      # Respaldo: lunes a viernes a las 6am UTC (8am Colombia)
 
 permissions:
   contents: write
@@ -28,7 +24,16 @@ jobs:
           cache: 'pip'
 
       - name: Install dependencies
-        run: pip install pandas openpyxl
+        run: pip install pandas openpyxl requests
+
+      - name: Download Excel from OneDrive
+        run: |
+          curl -L "${{ secrets.ONEDRIVE_DOWNLOAD_URL }}" \
+            -H "User-Agent: Mozilla/5.0" \
+            -o inventario.xlsx \
+            --max-time 60 \
+            --retry 3
+          echo "✓ Excel descargado: $(du -sh inventario.xlsx | cut -f1)"
 
       - name: Build data.json from Excel
         run: python build_data.py inventario.xlsx
@@ -38,7 +43,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data.json
-          git diff --staged --quiet || git commit -m "chore: update dashboard data [$(date +'%Y-%m-%d %H:%M')]"
+          git diff --staged --quiet || git commit -m "chore: update dashboard data [$(date +'%Y-%m-%d %H:%M')] [onedrive]"
           git push
 
       - name: Deploy to GitHub Pages
